@@ -3,42 +3,56 @@ import { Button, Container } from "react-bootstrap";
 import { useNavigate, useRouteError } from "react-router-dom";
 import Header from "../components/Header";
 
-const geoLocationPermission = () =>
-  new Promise((res, rej) =>
+// Function to check geolocation permission
+const geoLocationPermission = () => {
+  if (!navigator.permissions || !navigator.permissions.query) {
+    console.warn("Permissions API is not supported in this environment");
+    return Promise.reject(new Error("Permissions API is not available"));
+  }
+
+  return new Promise((res, rej) =>
     navigator.permissions
       .query({ name: "geolocation" })
       .then((permissionStatus) => res(permissionStatus))
-      .catch((permissionStatus) => rej(permissionStatus))
+      .catch((err) => rej(err))
   );
+};
 
-// * Customizing the error messages so that user's can understand
+// ErrorPage component
 const ErrorPage = () => {
   const [isGeoLocationAllowed, setIsGeoLocationAllowed] = useState(false);
 
   const error = useRouteError();
   const navigate = useNavigate();
 
-  geoLocationPermission().then(
-    (permissionStatus) =>
-      (permissionStatus.onchange = (e) =>
-        setIsGeoLocationAllowed(
-          e.currentTarget.state === "granted" ? true : false
-        ))
-  );
+  useEffect(() => {
+    geoLocationPermission().then((permissionStatus) => {
+      setIsGeoLocationAllowed(permissionStatus.state === "granted");
+      permissionStatus.onchange = (e) =>
+        setIsGeoLocationAllowed(e.currentTarget.state === "granted");
+    }).catch((err) => {
+      console.error("Geolocation permission check failed:", err);
+    });
+  }, []);
 
   useEffect(() => {
-    isGeoLocationAllowed && navigate("/");
+    if (isGeoLocationAllowed && window.location.pathname !== "/") {
+      navigate("/");
+    }
   }, [isGeoLocationAllowed, navigate]);
 
+  // Determine error message
   let message = "Something went wrong.";
 
-  if (error.status === 404) message = "Sorry, page not found. 🙁";
-
-  if (error.code === 1)
-    message =
-      "Before using the app, please be sure that your location is allowed.";
-
-  if (error.code === 2) message = "Please check your internet connection.";
+  if (error) {
+    if (error.status === 404) {
+      message = "Sorry, page not found. 😞";
+    } else if (error.code === 1) {
+      message = "Before using the app, please be sure that your location is allowed.";
+    } else if (error.code === 2) {
+      message = "Please check your internet connection.";
+    }
+  }
 
   return (
     <>
@@ -73,9 +87,11 @@ const ErrorPage = () => {
             className="d-flex align-items-center shadow mx-auto my-4"
             onClick={() => {
               geoLocationPermission().then((permissionStatus) => {
-                if (permissionStatus.state === "granted")
+                if (permissionStatus.state === "granted") {
                   window.location.reload();
-                else alert("Please be sure that location is allowed.");
+                } else {
+                  alert("Please be sure that location is allowed.");
+                }
               });
 
               navigate("/");
