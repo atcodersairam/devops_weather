@@ -13,7 +13,7 @@ describe("Example Test", () => {
   });
 
   it("Visits the app", () => {
-    cy.visit("http://localhost:3000"); // Replace with your app's URL
-     // Replace with a relevant test
+    cy.visit("http://localhost:3001"); // Replace with your app's URL
+    cy.contains("Weather").should("exist"); // Replace with a relevant test
   });
 });

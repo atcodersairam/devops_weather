@@ -1,62 +1,46 @@
-import { lazy, Suspense } from "react";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import "./App.css";
-import RootLayout from "./pages/Root";
-import ErrorPage from "./pages/Error";
-import HomePage from "./pages/Home";
-import { loader as weatherLoader } from "./pages/Root";
-import Spinner from "./components/Spinner";
-
-// * Lazy loading
-const DailyWeatherDetailPage = lazy(() => import("./pages/DailyWeatherDetail"));
-const SearchedCityDetailPage = lazy(() => import("./pages/SearchedCityDetail"));
-
-// * App routes
-const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <RootLayout />,
-    errorElement: <ErrorPage />,
-    loader: weatherLoader,
-    children: [
-      { index: true, element: <HomePage /> },
-      {
-        path: "daily-weather/:dailyWeatherDetail",
-        element: (
-          <Suspense fallback={<Spinner />}>
-            <DailyWeatherDetailPage />
-          </Suspense>
-        ),
-      },
-    ],
-  },
-  {
-    path: "search/:searchedCityDetail",
-    element: (
-      <Suspense fallback={<Spinner />}>
-        <SearchedCityDetailPage />
-      </Suspense>
-    ),
-    loader: ({ params }) =>
-      import("./pages/SearchedCityDetail").then((module) =>
-        module.loader({ params })
-      ),
-    children: [
-      { index: true, element: <HomePage /> },
-      {
-        path: "daily-weather/:dailyWeatherDetail",
-        element: (
-          <Suspense fallback={<Spinner />}>
-            <DailyWeatherDetailPage />
-          </Suspense>
-        ),
-      },
-    ],
-  },
-]);
+import './App.css';
+import Search from './component/search/search';
+import CurrentWeather from './component/current-weather/current-weather';
+import { WEATHER_API_URL, WEATHER_API_KEY } from './api';
+import { useState } from 'react';
+import ForeCast from './component/forecast/forecast';
 
 function App() {
-  return <RouterProvider router={router}></RouterProvider>;
+
+  const [currentWeather, setcurrentWeather] = useState(null);
+  const [forecast, setForeCast] = useState(null);
+
+
+  const handleOnSearchChange = (searchData) => {
+    const [lat, lon] = searchData.value.split(" ");
+
+    const currentWeatherFetch = fetch(`${WEATHER_API_URL}weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`);
+
+    const forecastFetch = fetch(`${WEATHER_API_URL}forecast?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`);
+
+    Promise.all([currentWeatherFetch, forecastFetch])
+      .then(async (response) => {
+        const weatherResponse = await response[0].json();
+        const forecastResponse = await response[1].json();
+
+        setcurrentWeather({ city: searchData.label, ...weatherResponse });
+        setForeCast({ city: searchData.label, ...forecastResponse });
+
+      })
+      .catch((err) => console.log(err));
+  }
+
+  console.log(currentWeather);
+  console.log(forecast);
+
+  return (
+    <div className="container">
+      <div>Weather App</div>
+      <Search onSearchChange={handleOnSearchChange} />
+      {currentWeather && <CurrentWeather data={currentWeather} />}
+      {forecast &&<ForeCast data={forecast} />}
+    </div>
+  );
 }
 
 export default App;
